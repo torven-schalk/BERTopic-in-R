@@ -1,3 +1,12 @@
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+pacman::p_load(stopwords,
+               tidyverse,
+               quanteda,
+               reticulate,
+               umap,
+               tidytext,
+               coop)
+
 topic_model <- function(data, docs, doc_id, time_stamp, transformer_model, min_cluster_size, min_samples = NULL,
                         n = 10, stopwords = stopwords::data_stopwords_stopwordsiso$en,
                         split = F, avg_words = NULL, random = F, seed = 2117, seed_split = 1721) {
@@ -315,41 +324,41 @@ topics_over_time <- function(topic_model, n = 5, timestamps = "docs_with_topic",
   topic_names <- topic_model[["topic_names"]]
   
   over_time_l <- lapply(sort(unique(docs_with_topic$timestamp)), function(x) {
-    docs_at_time <- docs_with_topic %>% 
-                    filter(timestamp == x)
-    docs_at_time_per_topic <- docs_at_time %>% 
-                              group_by(topic) %>% 
-                              summarize(doc = paste(doc, collapse = " "))
-    c_tf_idf_at_time <- docs_at_time_per_topic %>% 
-                        tidytext::unnest_tokens(word, doc) %>% 
-                        filter(!word %in% stopwords) %>%
-                        count(topic, word, sort = T, name = "t") %>% 
-                        group_by(topic) %>% 
-                        mutate(w = sum(t)) %>% 
-                        mutate(tf = t / w) %>% 
-                        ungroup() %>% 
-                        add_count(word, name = "sum_t") %>% 
-                        mutate(idf = log(nrow(docs_at_time) / sum_t)) %>% 
-                        mutate(tf_idf = tf * idf)
-    topwords_at_time <- c_tf_idf_at_time %>% 
-                        group_by(topic) %>% 
-                        slice_max(tf_idf, n = n, with_ties = F) %>% 
-                        group_by(topic) %>% 
-                        arrange(desc(tf_idf), .by_group = T) %>% 
-                        summarize(words = paste(word, collapse = " ")) %>% 
-                        mutate(words = str_split(words, " ")) %>% 
-                        add_row(topic = setdiff(unique(docs_with_topic$topic), .$topic))
-    
-    topic_freq <- docs_at_time %>% 
-                  group_by(topic) %>% 
-                  count(topic, timestamp, name = "frequency") %>% 
-                  ungroup() %>% 
-                  mutate(percent = (frequency / sum(frequency)) * 100) %>% 
-                  add_row(topic = setdiff(unique(docs_with_topic$topic), .$topic),
-                          timestamp = unique(.$timestamp), frequency = 0, percent = 0)
-    
-    topics_over_time <- left_join(topwords_at_time, topic_freq, by = "topic")
-    return(topics_over_time)
+                   docs_at_time <- docs_with_topic %>% 
+                                   filter(timestamp == x)
+                   docs_at_time_per_topic <- docs_at_time %>% 
+                                             group_by(topic) %>% 
+                                             summarize(doc = paste(doc, collapse = " "))
+                   c_tf_idf_at_time <- docs_at_time_per_topic %>% 
+                                       tidytext::unnest_tokens(word, doc) %>% 
+                                       filter(!word %in% stopwords) %>%
+                                       count(topic, word, sort = T, name = "t") %>% 
+                                       group_by(topic) %>% 
+                                       mutate(w = sum(t)) %>% 
+                                       mutate(tf = t / w) %>% 
+                                       ungroup() %>% 
+                                       add_count(word, name = "sum_t") %>% 
+                                       mutate(idf = log(nrow(docs_at_time) / sum_t)) %>% 
+                                       mutate(tf_idf = tf * idf)
+                   topwords_at_time <- c_tf_idf_at_time %>% 
+                                       group_by(topic) %>% 
+                                       slice_max(tf_idf, n = n, with_ties = F) %>% 
+                                       group_by(topic) %>% 
+                                       arrange(desc(tf_idf), .by_group = T) %>% 
+                                       summarize(words = paste(word, collapse = " ")) %>% 
+                                       mutate(words = str_split(words, " ")) %>% 
+                                       add_row(topic = setdiff(unique(docs_with_topic$topic), .$topic))
+                   
+                   topic_freq <- docs_at_time %>% 
+                                 group_by(topic) %>% 
+                                 count(topic, timestamp, name = "frequency") %>% 
+                                 ungroup() %>% 
+                                 mutate(percent = (frequency / sum(frequency)) * 100) %>% 
+                                 add_row(topic = setdiff(unique(docs_with_topic$topic), .$topic),
+                                         timestamp = unique(.$timestamp), frequency = 0, percent = 0)
+                   
+                   topics_over_time <- left_join(topwords_at_time, topic_freq, by = "topic")
+                   return(topics_over_time)
   })
   
   over_time <- do.call(rbind, over_time_l) %>% 
