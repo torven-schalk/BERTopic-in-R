@@ -1,11 +1,12 @@
-if (!require("pacman")) install.packages("pacman"); library(pacman)
-pacman::p_load(stopwords,
-               tidyverse,
-               quanteda,
-               reticulate,
-               umap,
-               tidytext,
-               coop)
+library(stopwords)
+library(tidyverse)
+library(quanteda)
+library(reticulate)
+library(umap)
+library(tidytext)
+library(coop)
+
+print("You will need a working installation of python with the following python packages installed: 'sentence-transformers' 'umap-learn' 'hdbscan'")
 
 topic_model <- function(data, docs, doc_id, time_stamp, transformer_model, min_cluster_size, min_samples = NULL,
                         n = 10, stopwords = stopwords::data_stopwords_stopwordsiso$en,
