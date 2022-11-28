@@ -213,7 +213,7 @@ plot_topics <- function(topic_model, min_cluster_size = NULL, min_samples = NULL
          else if (noise == 1) .
          else print("Error: noise must be true/false")
       } %>% 
-      ggplot(aes(x = x, y = y, color = {if (is.null(topic_names) == 0) topic_name else topic})) +
+      ggplot(aes(x = x, y = y, color = {if (is.null(topic_names) == 0) topic_name else as.character(topic)})) +
       geom_point() +
       theme_void() +
       theme(legend.position = "bottom") +
