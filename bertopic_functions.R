@@ -1,10 +1,5 @@
-library(stopwords)
-library(tidyverse)
-library(quanteda)
-library(reticulate)
-library(umap)
-library(tidytext)
-library(coop)
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+pacman::p_load("stopwords", "tidyverse", "quanteda", "reticulate", "umap", "tidytext", "coop")
 
 print("You will need a working installation of python with the following python packages installed: 'sentence-transformers' 'umap-learn' 'hdbscan'")
 
@@ -213,7 +208,7 @@ plot_topics <- function(topic_model, min_cluster_size = NULL, min_samples = NULL
          else if (noise == 1) .
          else print("Error: noise must be true/false")
       } %>% 
-      ggplot(aes(x = x, y = y, color = {if (is.null(topic_names) == 0) topic_name else as.character(topic)})) +
+      ggplot(aes(x = x, y = y, color = {if (is.null(topic_names) == 0) topic_name else topic})) +
       geom_point() +
       theme_void() +
       theme(legend.position = "bottom") +
@@ -454,7 +449,8 @@ merge_topics_manual <- function(topic_model, from, into, n = 10, stopwords_add =
 merge_topics <- function(topic_model, min_topic_size, n = 10, stopwords_add = NULL) {
   
   min <- min(topic_model[["topic_sizes"]]$size)
-  
+  merge <- tibble(from = numeric(),
+                  into = numeric())
   while(min <= min_topic_size) {
     
     topic_sizes <- topic_model[["topic_sizes"]]
@@ -479,7 +475,7 @@ merge_topics <- function(topic_model, min_topic_size, n = 10, stopwords_add = NU
     docs_with_topic <- docs_with_topic %>% 
                        mutate(topic = replace(topic, topic == from, into))
     
-    cluster <- cluster %>% 
+    cluster <- cluster %>%
                mutate(labels = replace(labels, labels == from, into))
     
     doc_per_topic <- docs_with_topic %>%
@@ -511,12 +507,17 @@ merge_topics <- function(topic_model, min_topic_size, n = 10, stopwords_add = NU
     
     min <- min(topic_sizes$size)
     
+    merge <- merge %>% 
+             add_row(from = from,
+                     into = into)
+    
     topic_model[["cluster"]] <- cluster
     topic_model[["docs_with_topic"]] <- docs_with_topic
     topic_model[["split_docs_with_topic"]] <- split_docs_with_topic
     topic_model[["c_tf_idf"]] <- c_tf_idf
     topic_model[["top_words"]] <- topwords
     topic_model[["topic_sizes"]] <- topic_sizes
+    topic_model[["merge"]] <- merge
   }
   return(topic_model)
 }
