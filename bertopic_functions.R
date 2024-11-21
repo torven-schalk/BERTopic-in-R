@@ -13,7 +13,7 @@ topic_model <- function(data,
                         min_cluster_size,                                       #minimum number of documents for a topic (smaller means more topics). Defaults to 5% of document number
                         min_samples,                                            #defaults to min_cluster_size. When smaller fewer data points will be classified as noise
                         umap_dist = 0.00000000000000000001,                     #must be between 0 and 1. lower values allow data points to be closer together, meaning better clustering
-                        umap_neighbours = 30,                                   #determines focus on local vs global structure in data. smaller means more topics
+                        umap_neighbours = 15,                                   #determines focus on local vs global structure in data. smaller means more topics
                         n_topwords = 10,                                        #number of words to show per topic. can easily be changed later
                         lemma = F,                                              #uses cleanNLP to lemmatise all words before calculating c-tf-idf for topic representations
                         spacy_model = "en_core_web_sm",                         #cleanNLP spacy model to use for lemmatisation, edit required for non-English data
@@ -122,7 +122,7 @@ topic_model <- function(data,
                                metric = "euclidean",
                                cluster_selection_method = "eom")$fit(umap$layout)
   cluster_exemplars <- tibble(exemplars = cluster$exemplars_)
-  cluster <- tibble(labels = cluster$labels_,
+  cluster <- tibble(labels = as.numeric(as.character(cluster$labels_)),
                     probabilities = cluster$probabilities_)
 
   
@@ -184,8 +184,7 @@ topic_model <- function(data,
   } else {
      doc_per_topic <- docs_with_topic %>% 
                       summarize(doc = paste(doc, collapse = " "),
-                                .by = topic) %>% 
-                      mutate(topic = as.double(topic))
+                                .by = topic)
   }
 
   
@@ -237,20 +236,19 @@ plot_topics <- function(topic_model,
   topic_names <- topic_model[["topic_names"]]
   split_docs_with_topic <- topic_model[["split_docs_with_topic"]]
   
-  min_cluster_size <- {if (missing(min_cluster_size)) topic_model[["parameters"]][["min_cluster_size"]]
-                         else min_cluster_size}
-  min_samples <- {if (missing(min_samples)) topic_model[["parameters"]][["min_samples"]]
-                    else min_samples}
-  
   cluster <- if (missing(min_cluster_size) & missing(min_samples)) {
                 topic_model[["cluster"]]
                 } else if (!missing(min_cluster_size) | !missing(min_samples)) {
+                          min_cluster_size <- {if (missing(min_cluster_size)) topic_model[["parameters"]][["min_cluster_size"]]
+                                                  else min_cluster_size}
+                          min_samples <- {if (missing(min_samples)) topic_model[["parameters"]][["min_samples"]]
+                                             else min_samples}
                           cluster <- clusterer$HDBSCAN(min_cluster_size = min_cluster_size,
                                                        min_samples = min_samples,
                                                        metric = "euclidean",
                                                        cluster_selection_method = "eom")$fit(umap$layout)
                           cluster_exemplars <- tibble(exemplars = cluster$exemplars_)
-                          cluster <- tibble(labels = cluster$labels_,
+                          cluster <- tibble(labels = as.numeric(as.character(cluster$labels_)),
                                             probabilities = cluster$probabilities_)
                 }
   
@@ -321,17 +319,17 @@ update_topics <- function(topic_model,
                                metric = "euclidean",
                                cluster_selection_method = "eom")$fit(umap$layout)
   cluster_exemplars <- tibble(exemplars = cluster$exemplars_)
-  cluster <- tibble(labels = cluster$labels_,
+  cluster <- tibble(labels = as.numeric(as.character(cluster$labels_)),
                     probabilities = cluster$probabilities_)
 
   split_docs_with_topic <- if (split == 0) {
                               docs_with_topic %>% 
                               ungroup() %>% 
-                              mutate(topic = as.factor(cluster$labels))
+                              mutate(topic = cluster$labels)
                            } else if (split == 1 & random == 1) {
                                      split_docs_with_topic %>% 
                                      ungroup() %>% 
-                                     mutate(topic = as.factor(cluster$labels))
+                                     mutate(topic = cluster$labels)
                            } else if (split == 1 & random == 0) {
                                      split_docs_with_topic %>% 
                                      ungroup() %>% 
@@ -358,7 +356,7 @@ update_topics <- function(topic_model,
                      } else if (split == 1 & random == 0) {
                        split_docs_with_topic %>%  
                        summarize(doc = paste(doc, collapse = " "),
-                                 topic = as.factor(unique(topic)),
+                                 topic = unique(topic),
                                  timestamp = unique(timestamp))
                      }
   
@@ -378,19 +376,16 @@ update_topics <- function(topic_model,
      doc_per_topic <- docs_with_topic %>% 
                       summarise(doc = paste(doc, collapse = " "),
                                 doc_lem = paste(doc_lem, collapse = " "),
-                                .by = topic) %>% 
-                      mutate(topic = as.factor(topic))
+                                .by = topic)
   } else if (lemma == 1 & lemma_calc == 0) {
      doc_per_topic <- docs_with_topic %>% 
                       summarise(doc = paste(doc, collapse = " "),
                                 doc_lem = paste(doc_lem, collapse = " "),
-                                .by = topic) %>% 
-                      mutate(topic = as.factor(topic))
+                                .by = topic)
   } else if (lemma == 0) {
      doc_per_topic <- docs_with_topic %>% 
                       summarise(doc = paste(doc, collapse = " "),
-                                .by = topic) %>% 
-                      mutate(topic = as.factor(topic))
+                                .by = topic)
   }
   
   c_tf_idf <- doc_per_topic %>% 
@@ -550,13 +545,11 @@ merge_topics_manual <- function(topic_model,
        doc_per_topic <- docs_with_topic %>%
                         summarise(doc = paste(doc, collapse = " "),
                                   doc_lem = paste(doc_lem, collapse = " "),
-                                  .by = topic) %>% 
-                        mutate(topic = as.double(topic))
+                                  .by = topic)
     } else if (lemma == 0) {
        doc_per_topic <- docs_with_topic %>% 
                         summarise(doc = paste(doc, collapse = " "),
-                                  .by = topic) %>% 
-                        mutate(topic = as.double(topic))
+                                  .by = topic)
     }
   
   c_tf_idf <- doc_per_topic %>% 
@@ -610,15 +603,14 @@ merge_topics <- function(topic_model,
     cluster <- topic_model[["cluster"]]
     stopwords <- c(topic_model[["parameters"]][["stopwords"]], stopwords_add) 
     
-    from <- topic_sizes$topic[which.min(topic_sizes$size)] %>%
-            as.numeric(levels(.))[.]
+    from <- topic_sizes$topic[which.min(topic_sizes$size)]
     into_temp <- topic_simil(topic_model, names = F) %>% 
                  as.data.frame() %>% 
                  rownames_to_column(var = "topic") %>% 
                  pivot_longer(!starts_with("topic"), names_to = "topic_comp", values_to = "cos_sim") %>% 
-                 filter(topic == from)
-    into <- into_temp$topic_comp[which.max(into_temp$cos_sim)] %>% 
-            as.numeric(levels(.))[.]
+                 filter(topic == from) %>% 
+                 mutate(across(contains("topci"), as.numeric))
+    into <- into_temp$topic_comp[which.max(into_temp$cos_sim)]
     
     if (split == 1) {
        split_docs_with_topic <- split_docs_with_topic %>% 
