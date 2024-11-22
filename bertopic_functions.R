@@ -609,7 +609,7 @@ merge_topics <- function(topic_model,
                  rownames_to_column(var = "topic") %>% 
                  pivot_longer(!starts_with("topic"), names_to = "topic_comp", values_to = "cos_sim") %>% 
                  filter(topic == from) %>% 
-                 mutate(across(contains("topci"), as.numeric))
+                 mutate(across(contains("topic"), as.numeric))
     into <- into_temp$topic_comp[which.max(into_temp$cos_sim)]
     
     if (split == 1) {
