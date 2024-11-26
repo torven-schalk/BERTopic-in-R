@@ -288,10 +288,12 @@ plot_topics <- function(topic_model,
 update_topics <- function(topic_model,
                           min_cluster_size,
                           min_samples,
+                          umap_neighbours,
                           n_topwords = 10,
                           lemma,
                           spacy_model,
                           stopwords_add = "") {
+  embed <- topic_model[["embedding"]]
   umap <- topic_model[["reduced_embedding"]]
   split_docs_with_topic <- topic_model[["split_docs_with_topic"]]
   docs_with_topic <- topic_model[["docs_with_topic"]]
@@ -301,6 +303,10 @@ update_topics <- function(topic_model,
               else lemma}
   lemma_calc <- {if (topic_model[["parameters"]][["lemma"]] == 0 & lemma == 1) T
                    else F}
+  umap_neighbours <- {if (missing(umap_neighbours)) topic_model[["parameters"]][["umap_neighbours"]]
+                        else umap_neighbours}
+  umap_calc <- {if (umap_neighbours == topic_model[["parameters"]][["umap_neighbours"]]) F
+                  else T}
   if (!is.logical(lemma)) {stop("lemma must be true/false")}
   spacy_model <- {if (missing(spacy_model)) topic_model[["parameters"]][["spacy_model"]]
                     else spacy_model}
@@ -309,6 +315,32 @@ update_topics <- function(topic_model,
                          else as.integer(min_cluster_size)}
   min_samples <- {if (missing(min_samples)) topic_model[["parameters"]][["min_samples"]]
                     else as.integer(min_samples)}
+  
+  if (umap_calc == 1) {
+     #Dimension reduction
+     ##for clustering
+     umap_dimc <- umap::umap.defaults
+     umap_dimc$n_components <- 10
+     umap_dimc$metric <- "cosine"
+     umap_dimc$min_dist <- umap_dist
+     umap_dimc$n_neighbors <- umap_neighbours
+     umap_dimc$random_state <- seed
+    
+     ##for plotting
+     umap_dimv <- umap::umap.defaults
+     umap_dimv$n_components <- 2
+     umap_dimv$metric <- "cosine"
+     umap_dimv$min_dist <- umap_dist
+     umap_dimv$n_neighbors <- umap_neighbours
+     umap_dimv$random_state <- seed
+    
+     umap <- umap::umap(embed,
+                        method = "umap-learn",
+                        config = umap_dimc)
+     plot <- umap::umap(embed,
+                        method = "umap-learn",
+                        config = umap_dimv)
+  }
   
   #Topic moddeling
   ##clustering
@@ -424,9 +456,12 @@ update_topics <- function(topic_model,
   topic_model[["parameters"]][["stopwords"]] <- stopwords
   topic_model[["parameters"]][["min_samples"]] <- min_samples
   topic_model[["parameters"]][["min_cluster_size"]] <- min_cluster_size
+  topic_model[["parameters"]][["umap_neighbours"]] <- umap_neighbours
   topic_model[["parameters"]][["lemma"]] <- lemma
   topic_model[["parameters"]][["spacy_model"]] <- spacy_model
   topic_model[["cluster_exemplars"]] <- cluster_exemplars
+  topic_model[["reduced_embedding"]] <- umap
+  topic_model[["plotting_layout"]] <- plot
    
   return(topic_model)
 }
@@ -691,9 +726,9 @@ topic_names <- function(topic_model, topic_names) {
   topic_sizes <- topic_sizes %>% 
                  mutate(topic_name = recode(topic, !!!setNames(c("Not assigned", topic_names),
                                                              sort(unique(topic_sizes$topic)))))
-  split_docs_with_topic <- split_docs_with_topic %>% 
-                           mutate(topic_name = recode(topic, !!!setNames(c("Not assigned", topic_names),
-                                                                         sort(unique(split_docs_with_topic$topic)))))
+  try(split_docs_with_topic <- split_docs_with_topic %>% 
+                               mutate(topic_name = recode(topic, !!!setNames(c("Not assigned", topic_names),
+                                                                             sort(unique(split_docs_with_topic$topic))))), silent = T)
   docs_with_topic <- docs_with_topic %>% 
                      mutate(topic_name = recode(topic, !!!setNames(c("Not assigned", topic_names),
                                                                    sort(unique(docs_with_topic$topic)))))
