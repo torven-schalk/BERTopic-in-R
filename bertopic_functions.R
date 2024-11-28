@@ -460,8 +460,8 @@ update_topics <- function(topic_model,
   topic_model[["parameters"]][["lemma"]] <- lemma
   topic_model[["parameters"]][["spacy_model"]] <- spacy_model
   topic_model[["cluster_exemplars"]] <- cluster_exemplars
-  topic_model[["reduced_embedding"]] <- umap
-  topic_model[["plotting_layout"]] <- plot
+  {if (umap_calc == 1) topic_model[["reduced_embedding"]] <- umap}
+  {if (umap_calc == 1) topic_model[["plotting_layout"]] <- plot}
    
   return(topic_model)
 }
